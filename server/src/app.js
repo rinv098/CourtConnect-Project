@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const authRoutes = require('./routes/auth');
+const courtRoutes = require('./routes/courts');
 
 const { initSocket } = require('./sockets');
 const reservationRoutes = require('./routes/reservations');
@@ -17,6 +19,8 @@ app.use(cors({ origin: process.env.CLIENT_URL }));
 app.use(express.json());
 
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/courts', courtRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
