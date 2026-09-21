@@ -1,12 +1,29 @@
 CREATE DATABASE IF NOT EXISTS courtconnect;
 USE courtconnect;
 
+DROP TABLE IF EXISTS waitlist;
+DROP TABLE IF EXISTS reservations;
+DROP TABLE IF EXISTS audit_log;
+DROP TABLE IF EXISTS courts;
+DROP TABLE IF EXISTS email_verifications;
+DROP TABLE IF EXISTS users;
+
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(150) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   role ENUM('resident', 'admin') DEFAULT 'resident',
+  avatar_url VARCHAR(500) NULL,
+  email_verified BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE email_verifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(150) NOT NULL,
+  code VARCHAR(6) NOT NULL,
+  expires_at DATETIME NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -29,7 +46,6 @@ CREATE TABLE reservations (
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (court_id) REFERENCES courts(id)
 );
-
 
 CREATE TABLE audit_log (
   id INT AUTO_INCREMENT PRIMARY KEY,
