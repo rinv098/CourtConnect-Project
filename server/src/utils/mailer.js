@@ -1,55 +1,67 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-console.log('[MAILER] mailer.js loaded');
+console.log('[MAILER] Resend mailer loaded');
 
-const transporter = nodemailer.createTransport({
-    host: '173.194.174.108',
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    family: 4,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-});
-
-transporter.verify((error) => {
-    if (error) {
-        console.error('[MAILER] Connection failed:', error);
-    } else {
-        console.log('[MAILER] SMTP connection successful');
-    }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendResetEmail(to, resetLink) {
-    await transporter.sendMail({
-        from: `"CourtConnect" <${process.env.SMTP_USER}>`,
-        to,
+    const { data, error } = await resend.emails.send({
+        from: 'CourtConnect <onboarding@resend.dev>',
+        to: [to],
         subject: 'Reset your CourtConnect password',
-        html: `<p>Click below to reset your CourtConnect password. This link expires in 30 minutes.</p>
-               <a href="${resetLink}">${resetLink}</a>`,
+        html: `
+            <p>Click below to reset your CourtConnect password.</p>
+            <p>This link expires in 30 minutes.</p>
+            <a href="${resetLink}">${resetLink}</a>
+        `,
     });
+
+    if (error) {
+        console.error('[MAILER] Reset email failed:', error);
+        throw new Error(error.message);
+    }
+
+    console.log('[MAILER] Reset email sent:', data.id);
 }
 
 async function sendVerificationEmail(to, code) {
-    await transporter.sendMail({
-        from: `"CourtConnect" <${process.env.SMTP_USER}>`,
-        to,
+    const { data, error } = await resend.emails.send({
+        from: 'CourtConnect <onboarding@resend.dev>',
+        to: [to],
         subject: 'Verify your CourtConnect email',
-        html: `<p>Your verification code is:</p>
-               <h2>${code}</h2>
-               <p>This code expires in 10 minutes.</p>`,
+        html: `
+            <p>Your CourtConnect verification code is:</p>
+            <h2>${code}</h2>
+            <p>This code expires in 10 minutes.</p>
+        `,
     });
+
+    if (error) {
+        console.error('[MAILER] Verification email failed:', error);
+        throw new Error(error.message);
+    }
+
+    console.log('[MAILER] Verification email sent:', data.id);
 }
 
 async function sendApprovalEmail(to, details) {
-    await transporter.sendMail({
-        from: `"CourtConnect" <${process.env.SMTP_USER}>`,
-        to,
+    const { data, error } = await resend.emails.send({
+        from: 'CourtConnect <onboarding@resend.dev>',
+        to: [to],
         subject: 'Your reservation was approved!',
-        html: `<p>Your booking for ${details.courtName} on ${details.date} at ${details.startTime} has been approved.</p>`,
+        html: `
+            <p>Your booking for ${details.courtName}
+            on ${details.date} at ${details.startTime}
+            has been approved.</p>
+        `,
     });
+
+    if (error) {
+        console.error('[MAILER] Approval email failed:', error);
+        throw new Error(error.message);
+    }
+
+    console.log('[MAILER] Approval email sent:', data.id);
 }
 
 module.exports = {
