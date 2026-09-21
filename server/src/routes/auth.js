@@ -82,11 +82,22 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await userModel.findByEmail(email);
-    if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
-    const passwordMatches = await bcrypt.compare(password, user.password_hash);
-    if (!passwordMatches) return res.status(401).json({ error: 'Invalid email or password' });
+console.log('LOGIN DEBUG:', {
+  email,
+  userFound: !!user,
+  userId: user?.id,
+  role: user?.role,
+  hasPasswordHash: !!user?.password_hash,
+});
 
+if (!user) return res.status(401).json({ error: 'Invalid email or password' });
+
+const passwordMatches = await bcrypt.compare(password, user.password_hash);
+
+console.log('PASSWORD MATCH:', passwordMatches);
+
+if (!passwordMatches) return res.status(401).json({ error: 'Invalid email or password' });
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar_url: user.avatar_url } });
   } catch (err) {
