@@ -3,10 +3,11 @@ const nodemailer = require('nodemailer');
 console.log('[MAILER] mailer.js loaded');
 
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
+    host: 'smtp.gmail.com',
     port: 587,
     secure: false,
     requireTLS: true,
+    family: 4,
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -15,7 +16,7 @@ const transporter = nodemailer.createTransport({
 
 transporter.verify((error) => {
     if (error) {
-        console.error('[MAILER] Connection failed:', error.message);
+        console.error('[MAILER] Connection failed:', error);
     } else {
         console.log('[MAILER] SMTP connection successful');
     }
