@@ -27,4 +27,35 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+router.patch('/:id/status', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['available', 'unavailable'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be available or unavailable' });
+    }
+    await db.query(`UPDATE courts SET status = ? WHERE id = ?`, [status, req.params.id]);
+    res.json({ status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update court status' });
+  }
+});
+
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const [[{ count }]] = await db.query(
+      `SELECT COUNT(*) AS count FROM reservations WHERE court_id = ? AND status IN ('pending','approved')`,
+      [req.params.id]
+    );
+    if (count > 0) {
+      return res.status(400).json({ error: 'Cannot delete a court with active reservations. Mark it unavailable instead.' });
+    }
+    await db.query(`DELETE FROM courts WHERE id = ?`, [req.params.id]);
+    res.json({ deleted: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete court' });
+  }
+});
+
 module.exports = router;

@@ -18,4 +18,10 @@ async function createUser({ name, email, passwordHash, role = 'resident' }) {
   return { id: result.insertId, name, email, role };
 }
 
-module.exports = { findByEmail, findById, createUser };
+async function updateProfile(userId, { name, avatarUrl }) {
+  await db.query(`UPDATE users SET name = ?, avatar_url = ? WHERE id = ?`, [name, avatarUrl, userId]);
+  const [rows] = await db.query(`SELECT id, name, email, role, avatar_url FROM users WHERE id = ?`, [userId]);
+  return rows[0];
+}
+
+module.exports = { findByEmail, findById, createUser, updateProfile };
