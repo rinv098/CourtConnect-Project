@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -98,6 +99,23 @@ function Courts() {
     }
     loadAll();
   }, [selectedDate]);
+
+  // Keep a ref of the currently viewed date so the socket handler below always
+  // refetches the right day, without needing to reconnect on every date change.
+  const selectedDateRef = useRef(selectedDate);
+  useEffect(() => {
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
+
+  // Live grid updates: any booking, approval, rejection, or cancellation anywhere
+  // in the app triggers a scheduleChanged broadcast, so refetch when we hear one.
+  useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL);
+    socket.on('scheduleChanged', () => {
+      fetchSchedule(selectedDateRef.current);
+    });
+    return () => socket.disconnect();
+  }, []);
 
   function findBooking(courtId, slotStart) {
     return schedule.find((r) => r.courtId === courtId && r.startTime.slice(0, 5) === slotStart);

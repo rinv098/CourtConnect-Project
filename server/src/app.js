@@ -16,6 +16,7 @@ require('./listeners/conflictChecker');
 require('./listeners/auditLogger');
 require('./listeners/notifier');
 require('./listeners/waitlistAutoFill');
+require('./listeners/scheduleBroadcaster');
 
 const app = express();
 app.use(cors({ origin: process.env.CLIENT_URL }));
