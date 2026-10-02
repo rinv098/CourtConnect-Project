@@ -3,6 +3,8 @@ const waitlistModel = require('../models/waitlistModel');
 const reservationModel = require('../models/reservationModel');
 const db = require('../config/db');
 const { getIO } = require('../sockets');
+const { WEEKLY_CAP } = require('../constants/limits');
+const { manilaDateTime } = require('../utils/time');
 
 eventBus.on('reservation.cancelled', async (reservation) => {
   try {
@@ -11,37 +13,51 @@ eventBus.on('reservation.cancelled', async (reservation) => {
     const cancelled = rows[0];
     if (!cancelled) return;
 
-    const nextInLine = await waitlistModel.findNextInLine({
+    // No point offering a slot that has already started
+    if (manilaDateTime(cancelled.date, cancelled.start_time) <= new Date()) return;
+
+    const slot = {
       courtId: cancelled.court_id,
       date: cancelled.date,
       startTime: cancelled.start_time,
       endTime: cancelled.end_time,
-    });
+    };
 
-    if (!nextInLine) return; // nobody waiting for this exact slot
+    // Walk the queue until someone who is still under the weekly cap is found
+    let nextInLine;
+    while ((nextInLine = await waitlistModel.findNextInLine(slot))) {
+      const [[user]] = await db.query(`SELECT role FROM users WHERE id = ?`, [nextInLine.user_id]);
+      const activeCount = await reservationModel.countActiveInWeek(nextInLine.user_id, cancelled.date);
 
-    const newReservation = await reservationModel.createReservation({
-      userId: nextInLine.user_id,
-      courtId: nextInLine.court_id,
-      date: nextInLine.date,
-      startTime: nextInLine.start_time,
-      endTime: nextInLine.end_time,
-      status: 'pending',
-    });
+      if (user?.role !== 'admin' && activeCount >= WEEKLY_CAP) {
+        await waitlistModel.updateStatus(nextInLine.id, 'expired');
+        continue;
+      }
 
-    await waitlistModel.updateStatus(nextInLine.id, 'offered');
-
-    // Re-emit so conflictChecker and auditLogger react to this new reservation too
-    eventBus.emit('reservation.requested', newReservation);
-
-    // Notify the waitlisted user in real time, if they're connected
-    try {
-      getIO().to(`user:${nextInLine.user_id}`).emit('waitlistOffer', {
-        message: 'A slot you were waitlisted for is now available!',
-        reservation: newReservation,
+      const newReservation = await reservationModel.createReservation({
+        userId: nextInLine.user_id,
+        courtId: nextInLine.court_id,
+        date: nextInLine.date,
+        startTime: nextInLine.start_time,
+        endTime: nextInLine.end_time,
+        status: 'pending',
       });
-    } catch (socketErr) {
-      console.error('Socket notify failed (non-fatal):', socketErr.message);
+
+      await waitlistModel.updateStatus(nextInLine.id, 'offered');
+
+      // Re-emit so conflictChecker and auditLogger react to this new reservation too
+      eventBus.emit('reservation.requested', newReservation);
+
+      // Notify the waitlisted user in real time, if they're connected
+      try {
+        getIO().to(`user:${nextInLine.user_id}`).emit('waitlistOffer', {
+          message: 'A slot you were waitlisted for is now available!',
+          reservation: newReservation,
+        });
+      } catch (socketErr) {
+        console.error('Socket notify failed (non-fatal):', socketErr.message);
+      }
+      return;
     }
   } catch (err) {
     console.error('Waitlist auto-fill error:', err);

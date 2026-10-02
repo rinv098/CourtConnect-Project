@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import PageTransition from '@/components/PageTransition';
+import LegalDialog from '@/components/LegalDialog';
 import coverImage from '@/assets/cover.jpg';
 
 function Register() {
@@ -17,6 +18,7 @@ function Register() {
   const [code, setCode] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [legalDoc, setLegalDoc] = useState(null); // 'terms' | 'privacy' | null
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -128,7 +130,6 @@ function Register() {
             <CardContent>
               {step === 'form' ? (
                 <form onSubmit={handleSendCode} className="space-y-4">
-
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
                     <Input
@@ -176,57 +177,45 @@ function Register() {
                   </div>
 
                   <div className="space-y-3 pt-1">
-
+                    {/* Ticking a box opens the popup; agreeing inside it is what ticks the box */}
                     <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
                       <input
                         type="checkbox"
                         checked={agreeTerms}
-                        onChange={(e) => setAgreeTerms(e.target.checked)}
+                        onChange={() => (agreeTerms ? setAgreeTerms(false) : setLegalDoc('terms'))}
                         className="mt-0.5 h-4 w-4 shrink-0"
                       />
-
                       <span>
                         I agree to the{' '}
                         <button
                           type="button"
                           className="underline text-primary"
-                          onClick={() =>
-                            alert(
-                              'Terms of Use: CourtConnect is intended for legitimate barangay court reservations and community recreation. Users are responsible for providing accurate information and following court rules.'
-                            )
-                          }
+                          onClick={() => setLegalDoc('terms')}
                         >
                           Terms of Use
                         </button>
                         .
                       </span>
                     </label>
-
                     <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
                       <input
                         type="checkbox"
                         checked={agreePrivacy}
-                        onChange={(e) => setAgreePrivacy(e.target.checked)}
+                        onChange={() => (agreePrivacy ? setAgreePrivacy(false) : setLegalDoc('privacy'))}
                         className="mt-0.5 h-4 w-4 shrink-0"
                       />
-
                       <span>
                         I acknowledge the{' '}
                         <button
                           type="button"
                           className="underline text-primary"
-                          onClick={() =>
-                            alert(
-                              'Privacy Notice: CourtConnect collects information such as your name and email to create and manage your account, verify your identity, and process court reservations.'
-                            )
-                          }
+                          onClick={() => setLegalDoc('privacy')}
                         >
                           Privacy Notice
                         </button>
                         .
                       </span>
                     </label>
-
                   </div>
 
                   {error && (
@@ -254,7 +243,6 @@ function Register() {
                       Log in
                     </Link>
                   </p>
-
                 </form>
               ) : (
                 <form
@@ -304,6 +292,18 @@ function Register() {
           </Card>
         </div>
       </div>
+      {legalDoc && (
+        <LegalDialog
+          key={legalDoc}
+          doc={legalDoc}
+          onClose={() => setLegalDoc(null)}
+          onAgree={() => {
+            if (legalDoc === 'terms') setAgreeTerms(true);
+            else setAgreePrivacy(true);
+            setLegalDoc(null);
+          }}
+        />
+      )}
     </PageTransition>
   );
 }

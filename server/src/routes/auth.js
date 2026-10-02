@@ -12,15 +12,18 @@ const multer = require('multer');
 const multerS3 = require('multer-s3');
 const s3 = require('../config/s3');
 
-const upload = multer({
-  storage: multerS3({
-    s3,
-    bucket: process.env.AWS_BUCKET_NAME,
-    key: (req, file, cb) => {
-      cb(null, `avatars/${req.user.id}-${Date.now()}-${file.originalname}`);
-    },
-  }),
-});
+// multer-s3 throws at startup without a bucket, so only build it when S3 is configured
+const upload = process.env.AWS_BUCKET_NAME
+  ? multer({
+      storage: multerS3({
+        s3,
+        bucket: process.env.AWS_BUCKET_NAME,
+        key: (req, file, cb) => {
+          cb(null, `avatars/${req.user.id}-${Date.now()}-${file.originalname}`);
+        },
+      }),
+    })
+  : null;
 
 // POST /api/auth/send-verification - step 1 of registration
 router.post('/send-verification', async (req, res) => {
@@ -31,15 +34,16 @@ router.post('/send-verification', async (req, res) => {
     const existing = await userModel.findByEmail(email);
     if (existing) return res.status(409).json({ error: 'An account with this email already exists' });
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 1000000).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+    // Only the newest code should work, so clear any earlier ones first
+    await db.query(`DELETE FROM email_verifications WHERE email = ?`, [email]);
 
     await db.query(
       `INSERT INTO email_verifications (email, code, expires_at) VALUES (?, ?, ?)`,
       [email, code, expires]
     );
-
-    console.log('[VERIFY] Sending verification email to:', email);
 
     await sendVerificationEmail(email, code);
 
@@ -121,14 +125,6 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     const user = await userModel.findByEmail(email);
 
-    console.log('LOGIN DEBUG:', {
-      email,
-      userFound: !!user,
-      userId: user?.id,
-      role: user?.role,
-      hasPasswordHash: !!user?.password_hash,
-    });
-
     if (!user) {
       return res.status(401).json({
         error: 'Invalid email or password'
@@ -139,8 +135,6 @@ router.post('/login', async (req, res) => {
       password,
       user.password_hash
     );
-
-    console.log('PASSWORD MATCH:', passwordMatches);
 
     if (!passwordMatches) {
       return res.status(401).json({
@@ -199,7 +193,10 @@ router.patch('/profile', requireAuth, async (req, res) => {
 router.post(
   '/profile/avatar',
   requireAuth,
-  upload.single('avatar'),
+  (req, res, next) =>
+    upload
+      ? upload.single('avatar')(req, res, next)
+      : res.status(503).json({ error: 'Avatar uploads are not configured on this server' }),
   async (req, res) => {
     try {
       if (!req.file) {

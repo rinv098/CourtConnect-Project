@@ -1,12 +1,8 @@
+-- WARNING: this script DROPS and recreates every table. Do not run it on a database with real data.
 CREATE DATABASE IF NOT EXISTS courtconnect;
 USE courtconnect;
 
-DROP TABLE IF EXISTS waitlist;
-DROP TABLE IF EXISTS reservations;
-DROP TABLE IF EXISTS audit_log;
-DROP TABLE IF EXISTS courts;
-DROP TABLE IF EXISTS email_verifications;
-DROP TABLE IF EXISTS users;
+
 
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -17,6 +13,8 @@ CREATE TABLE users (
   avatar_url VARCHAR(500) NULL,
   email_verified BOOLEAN DEFAULT FALSE,
   no_show_count INT DEFAULT 0,
+  reset_token VARCHAR(64) NULL,
+  reset_token_expires DATETIME NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,11 +43,15 @@ CREATE TABLE reservations (
   status ENUM('pending', 'approved', 'rejected', 'cancelled', 'no_show') DEFAULT 'pending',
   is_public BOOLEAN DEFAULT FALSE,
   event_title VARCHAR(150) NULL,
+  event_description VARCHAR(500) NULL,
+  category VARCHAR(20) NULL,
+  sub_category VARCHAR(50) NULL,
   checked_in BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (court_id) REFERENCES courts(id),
-  INDEX idx_reservations_date (date)
+  INDEX idx_reservations_date (date),
+  INDEX idx_reservations_court_date (court_id, date)
 );
 
 CREATE TABLE audit_log (
@@ -58,11 +60,6 @@ CREATE TABLE audit_log (
   payload_json JSON,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-ALTER TABLE reservations
-ADD COLUMN event_description TEXT NULL;
-
-INSERT INTO users (name, email, password_hash, role, email_verified)
-VALUES ('Admin', 'admin@gmail.com', '$2b$10$0aUxvYXxZdBhgdpMLasycedYokRxPWYHur7iynRMLENXa2a9MK5SC', 'admin', TRUE);
 
 CREATE TABLE waitlist (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -76,3 +73,5 @@ CREATE TABLE waitlist (
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (court_id) REFERENCES courts(id)
 );
+
+-- No admin account is seeded here. Set ADMIN_EMAIL and ADMIN_PASSWORD in server/.env, then run: npm run seed:admin

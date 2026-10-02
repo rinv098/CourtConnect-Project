@@ -13,7 +13,7 @@ async function findNextInLine({ courtId, date, startTime, endTime }) {
   const [rows] = await db.query(
     `SELECT * FROM waitlist
      WHERE court_id = ? AND date = ? AND start_time = ? AND end_time = ? AND status = 'waiting'
-     ORDER BY created_at ASC LIMIT 1`,
+     ORDER BY created_at ASC, id ASC LIMIT 1`,
     [courtId, date, startTime, endTime]
   );
   return rows[0] || null;
@@ -47,12 +47,12 @@ async function findAll() {
 }
 
 async function getPosition(id) {
-  const [[entry]] = await db.query(`SELECT court_id, date, start_time, created_at FROM waitlist WHERE id = ?`, [id]);
+  const [[entry]] = await db.query(`SELECT id, court_id, date, start_time FROM waitlist WHERE id = ?`, [id]);
   if (!entry) return null;
   const [[{ position }]] = await db.query(
     `SELECT COUNT(*) AS position FROM waitlist
-     WHERE court_id = ? AND date = ? AND start_time = ? AND status = 'waiting' AND created_at <= ?`,
-    [entry.court_id, entry.date, entry.start_time, entry.created_at]
+     WHERE court_id = ? AND date = ? AND start_time = ? AND status = 'waiting' AND id <= ?`,
+    [entry.court_id, entry.date, entry.start_time, entry.id]
   );
   return position;
 }

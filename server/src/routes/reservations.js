@@ -5,6 +5,12 @@ const reservationModel = require('../models/reservationModel');
 const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const db = require('../config/db');
 const { isValidCategory } = require('../constants/categories');
+const { WEEKLY_CAP } = require('../constants/limits');
+const { todayInManila, manilaDateTime } = require('../utils/time');
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}(:\d{2})?$/;
+const withSeconds = (t) => (t.length === 5 ? `${t}:00` : t);
 
 // POST /api/reservations - resident submits a reservation request
 router.post('/', requireAuth, async (req, res) => {
@@ -15,26 +21,35 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Please choose a valid activity category.' });
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    if (req.body.date < today) {
+    const { courtId, date, startTime, endTime } = req.body;
+    if (!courtId || !DATE_RE.test(date || '') || !TIME_RE.test(startTime || '') || !TIME_RE.test(endTime || '')) {
+      return res.status(400).json({ error: 'Court, date, start time, and end time are required' });
+    }
+
+    if (withSeconds(endTime) <= withSeconds(startTime)) {
+      return res.status(400).json({ error: 'End time must be after start time' });
+    }
+
+    if (date < todayInManila()) {
       return res.status(400).json({ error: 'Cannot book a date in the past' });
     }
 
-       const now = new Date();
-    const requestedDateTime = new Date(`${req.body.date}T${req.body.startTime}`);
-    if (requestedDateTime <= now) {
+    if (manilaDateTime(date, startTime) <= new Date()) {
       return res.status(400).json({ error: 'Cannot book a time slot that has already passed' });
     }
 
+    const [[court]] = await db.query(`SELECT status FROM courts WHERE id = ?`, [courtId]);
+    if (!court) {
+      return res.status(404).json({ error: 'Court not found' });
+    }
+
+    if (court.status !== 'available') {
+      return res.status(400).json({ error: 'This court is currently unavailable' });
+    }
+
     if (req.user.role !== 'admin') {
-      const [[capCheck]] = await db.query(
-        `SELECT COUNT(*) AS count FROM reservations
-         WHERE user_id = ? AND status IN ('pending','approved')
-         AND YEARWEEK(date, 1) = YEARWEEK(?, 1)`,
-        [req.user.id, req.body.date]
-      );
-      const WEEKLY_CAP = 2;
-      if (capCheck.count >= WEEKLY_CAP) {
+      const activeCount = await reservationModel.countActiveInWeek(req.user.id, date);
+      if (activeCount >= WEEKLY_CAP) {
         return res.status(400).json({ error: `You've reached your limit of ${WEEKLY_CAP} reservations this week.` });
       }
     }
@@ -42,10 +57,10 @@ router.post('/', requireAuth, async (req, res) => {
     const reservation = await reservationModel.createReservation({
       userId: req.user.id,
       name: req.user.name,
-      courtId: req.body.courtId,
-      date: req.body.date,
-      startTime: req.body.startTime,
-      endTime: req.body.endTime,
+      courtId,
+      date,
+      startTime,
+      endTime,
       status: initialStatus,
       isPublic: req.body.isPublic || false,
       eventTitle: req.body.eventTitle || null,
@@ -64,8 +79,12 @@ router.post('/', requireAuth, async (req, res) => {
 // POST /api/reservations/:id/approve - admin approves
 router.post('/:id/approve', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const [rows] = await db.query(`SELECT user_id FROM reservations WHERE id = ?`, [req.params.id]);
+    const [rows] = await db.query(`SELECT user_id, status FROM reservations WHERE id = ?`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Reservation not found' });
+
+    if (rows[0].status !== 'pending') {
+      return res.status(400).json({ error: `Only pending reservations can be approved (this one is ${rows[0].status})` });
+    }
 
     await reservationModel.updateStatus(req.params.id, 'approved');
     eventBus.emit('reservation.approved', { id: req.params.id, userId: rows[0].user_id });
@@ -91,6 +110,10 @@ router.post('/:id/cancel', requireAuth, async (req, res) => {
 
     if (!isOwner && !isAdmin) {
       return res.status(403).json({ error: 'You can only cancel your own reservations' });
+    }
+
+    if (!['pending', 'approved'].includes(reservation.status)) {
+      return res.status(400).json({ error: `This reservation is already ${reservation.status}` });
     }
 
     await reservationModel.updateStatus(req.params.id, 'cancelled');
@@ -209,10 +232,7 @@ router.post('/:id/no-show', requireAuth, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'This resident already checked in' });
     }
 
-    const dateStr = reservation.date instanceof Date
-      ? reservation.date.toISOString().split('T')[0]
-      : reservation.date.split('T')[0];
-    const startDateTime = new Date(`${dateStr}T${reservation.start_time}`);
+    const startDateTime = manilaDateTime(reservation.date, reservation.start_time);
     const graceDeadline = new Date(startDateTime.getTime() + 15 * 60 * 1000);
 
     if (new Date() < graceDeadline) {

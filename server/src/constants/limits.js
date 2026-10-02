@@ -1,0 +1,1 @@
+module.exports = { WEEKLY_CAP: 2 };

@@ -1,3 +1,5 @@
+const jwt = require('jsonwebtoken');
+
 let io = null;
 
 function initSocket(server) {
@@ -6,14 +8,27 @@ function initSocket(server) {
     cors: { origin: process.env.CLIENT_URL, methods: ['GET', 'POST'] },
   });
 
+  // Identity comes from a verified JWT, never from something the client claims.
+  // No or invalid token = anonymous connection: it still gets public broadcasts
+  // (scheduleChanged, publicEventPosted) but joins no private room.
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (token) {
+      try {
+        socket.user = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (err) {
+        // expired or forged token, fall through as anonymous
+      }
+    }
+    next();
+  });
+
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
-    // Client tells us who it is so we can target notifications later,
-    // e.g. socket.emit('identify', { userId, role })
-    socket.on('identify', ({ userId, role }) => {
-      socket.join(role === 'admin' ? 'admins' : `user:${userId}`);
-    });
+    if (socket.user) {
+      socket.join(socket.user.role === 'admin' ? 'admins' : `user:${socket.user.id}`);
+    }
 
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);

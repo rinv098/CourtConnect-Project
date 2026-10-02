@@ -22,14 +22,11 @@ export function NotificationProvider({ children }) {
 
     if (!token || !user.id) return;
 
-    const socket = io(import.meta.env.VITE_API_URL);
+    const socket = io(import.meta.env.VITE_API_URL, { auth: { token } });
     socketRef.current = socket;
 
     socket.on('liveStats', (data) => setLiveStats(data));
 
-    socket.on('connect', () => {
-      socket.emit('identify', { userId: user.id, role: user.role });
-    });
 
     function addNotification(message) {
       setNotifications((prev) =>

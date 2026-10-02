@@ -7,18 +7,22 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import FeaturedEvents from '@/components/FeaturedEvents';
 import DateNavigator from '@/components/DateNavigator';
+import CourtsHeroCarousel from '@/components/CourtsHeroCarousel';
 import { CATEGORIES } from '@/lib/categories';
-import { Trophy, Info, CheckCircle2, Clock } from 'lucide-react';
+import { Info, CheckCircle2, Clock } from 'lucide-react';
+
+const OPEN_HOUR = 8; // courts open at 8:00 AM
+const CLOSE_HOUR = 22; // courts close at 10:00 PM
+const SLOT_HOURS = 2; // length of each reservation slot
 
 function generateTimeSlots() {
   const slots = [];
-  for (let hour = 8; hour <= 21; hour++) {
+  for (let hour = OPEN_HOUR; hour + SLOT_HOURS <= CLOSE_HOUR; hour += SLOT_HOURS) {
     slots.push({
       start: `${hour.toString().padStart(2, '0')}:00`,
-      end: `${(hour + 1).toString().padStart(2, '0')}:00`,
-      label: formatHour(hour),
+      end: `${(hour + SLOT_HOURS).toString().padStart(2, '0')}:00`,
+      label: `${formatHour(hour)} - ${formatHour(hour + SLOT_HOURS)}`,
     });
   }
   return slots;
@@ -133,8 +137,12 @@ function Courts() {
     return () => socket.disconnect();
   }, []);
 
+  // A slot counts as taken if any booking overlaps it, so older 1-hour bookings still show up
   function findBooking(courtId, slotStart) {
-    return schedule.find((r) => r.courtId === courtId && r.startTime.slice(0, 5) === slotStart);
+    const slot = TIME_SLOTS.find((s) => s.start === slotStart);
+    return schedule.find(
+      (r) => r.courtId === courtId && r.startTime.slice(0, 5) < slot.end && r.endTime.slice(0, 5) > slot.start
+    );
   }
 
   function openModal(courtId, slot) {
@@ -257,22 +265,8 @@ function Courts() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Hero banner */}
-      <div className="relative rounded-2xl overflow-hidden bg-slate-900 text-white p-8">
-        <div className="relative z-10 max-w-xl">
-          <p className="flex items-center gap-2 text-orange-400 text-sm font-semibold mb-2">
-            <Trophy className="h-4 w-4" /> BARANGAY COURTS
-          </p>
-          <h1 className="text-3xl font-extrabold tracking-tight">SAN JUAN COURTS</h1>
-          <p className="text-white/70 text-sm">
-            Pick a court, grab an open slot, and play. Taken already? Hop on the waitlist and
-            we'll let you know the second it opens up.
-          </p>
-        </div>
-      </div>
-
-      {/* Featured events */}
-      <FeaturedEvents />
+      {/* Hero photo slider */}
+      <CourtsHeroCarousel />
 
       {/* Date navigation */}
       <Card>
@@ -284,7 +278,7 @@ function Courts() {
         </CardContent>
       </Card>
 
-        {/* Legend */}
+      {/* Legend */}
       <div className="flex items-center gap-6 text-xs text-muted-foreground">
         <span className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-primary/90" /> Confirmed</span>
         <span className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-orange-100 border border-orange-300" /> Pending</span>
@@ -318,20 +312,20 @@ function Courts() {
                           onClick={() => !isPast && openModal(court.id, slot)}
                           disabled={isPast}
                           className={`w-full h-14 rounded-lg text-xs px-2 flex flex-col items-start justify-center transition-colors ${
-                                isPast
-                                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
-                                  : !booking
-                                  ? 'bg-slate-50 hover:bg-slate-100 border border-dashed'
-                                  : booking.status === 'approved'
-                                  ? 'bg-primary/90 text-white hover:bg-primary'
-                                  : 'bg-orange-100 text-orange-800 hover:bg-orange-200'
-                              }`}
+                            isPast
+                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
+                              : !booking
+                              ? 'bg-slate-50 hover:bg-slate-100 border border-dashed'
+                              : booking.status === 'approved'
+                              ? 'bg-primary/90 text-white hover:bg-primary'
+                              : 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+                          }`}
                         >
                           {isPast ? (
-                                <span>Past</span>
-                              ) : !booking ? (
-                                <span className="text-muted-foreground">Available</span>
-                              ) : (
+                            <span>Past</span>
+                          ) : !booking ? (
+                            <span className="text-muted-foreground">Available</span>
+                          ) : (
                             <>
                               <span className="font-medium">
                                 {booking.status === 'approved' ? 'Confirmed' : 'Pending'}
@@ -352,8 +346,6 @@ function Courts() {
         </CardContent>
       </Card>
 
-      
-
       {/* Booking modal */}
       {modalSlot && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -363,7 +355,7 @@ function Courts() {
                 {modalSlot.taken ? 'Slot Taken' : 'Confirm Booking'}
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                  {formatHour(parseInt(modalSlot.start))} - {formatHour(parseInt(modalSlot.end))} · {formatDateDisplay(selectedDate)}
+                {formatHour(parseInt(modalSlot.start))} - {formatHour(parseInt(modalSlot.end))} · {formatDateDisplay(selectedDate)}
               </p>
 
               {modalSlot.taken ? (

@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { CalendarDays, Users } from 'lucide-react';
 import { io } from 'socket.io-client';
 
@@ -44,55 +42,45 @@ function FeaturedEvents() {
     return () => socket.disconnect();
   }, []);
 
+  // Styled for the dark sidebar and mobile menu (white text on the slate background)
   return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-base">Featured Reservation</h3>
-          <span className="text-xs text-muted-foreground">Public bookings</span>
-        </div>
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-white/50 mb-3 px-1">
+        Featured Reservations
+      </h3>
 
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        ) : events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No public events posted yet. Mark your next booking as "Public" to advertise it here.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {events.map((event) => (
-              <div key={event.id} className="border rounded-lg p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-sm">
-                      {event.event_title || `${event.user_name}'s Game`}
-                    </p>
-                    {event.event_description && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {event.event_description}
-                      </p>
-                    )}
-                  </div>
-                  <Badge variant="secondary" className="shrink-0">
-                    {event.court_name}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <CalendarDays className="h-3 w-3" />
-                    {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {formatTime12Hour(event.start_time)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    Hosted by {event.user_name}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {loading ? (
+        <p className="text-xs text-white/50 px-1">Loading...</p>
+      ) : events.length === 0 ? (
+        <p className="text-xs text-white/50 px-1">
+          No public events yet. Mark a booking as "Public" to show it here.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {events.map((event) => (
+            <div key={event.id} className="rounded-lg bg-white/5 border border-white/10 p-3">
+              <p className="text-sm font-medium text-white truncate">
+                {event.event_title || `${event.user_name}'s Game`}
+              </p>
+              <p className="text-xs text-orange-400 mt-0.5">{event.court_name}</p>
+              {event.event_description && (
+                <p className="text-xs text-white/60 mt-1 line-clamp-2">{event.event_description}</p>
+              )}
+              <p className="flex items-center gap-1.5 text-xs text-white/60 mt-2">
+                <CalendarDays className="h-3 w-3 shrink-0" />
+                {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ·{' '}
+                {formatTime12Hour(event.start_time)}
+                {event.end_time ? ` - ${formatTime12Hour(event.end_time)}` : ''}
+              </p>
+              <p className="flex items-center gap-1.5 text-xs text-white/60 mt-1">
+                <Users className="h-3 w-3 shrink-0" />
+                <span className="truncate">Hosted by {event.user_name}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

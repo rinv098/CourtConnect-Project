@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminModel = require('../models/adminModel');
 const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
+const aiSummary = require('../services/aiSummary');
 
 router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -103,6 +104,26 @@ router.get('/trend/day', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch day records' });
+  }
+});
+
+
+router.get('/trend/summary', requireAuth, requireAdmin, async (req, res) => {
+  try {
+      const result = await aiSummary.getSummary(req.query);
+      res.json(result); // { summary, source: 'ai' | 'auto' | 'empty' }
+  } catch (err) {
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error('AI summary failed:', err.message);
+    if (err.code === 'NOT_CONFIGURED') {
+      return res.status(503).json({ error: 'AI summaries are not set up yet. Add GEMINI_API_KEY to the server .env.' });
+    }
+    if (err.status === 429) {
+      return res.status(429).json({ error: 'The AI service is busy or over its free quota. Try again in a minute.' });
+    }
+    res.status(502).json({ error: 'Could not generate a summary right now.' });
   }
 });
 

@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useNotifications } from '@/context/NotificationContext';
+import AiSummaryCard from '@/components/AiSummaryCard';
 
 const PAGE_SIZE = 10;
 
@@ -211,8 +212,7 @@ function StatCard({ icon: Icon, label, value, sublabel }) {
   );
 }
 
-function ScalableBarLineChart({ data, onItemClick, xLabel, barColor = '#fed7aa', lineColor = '#f97316' }) {
-  const [hoveredIndex, setHoveredIndex] = useState(null);
+function ScalableBarLineChart({ data, onItemClick, xLabel, lineColor = '#f97316' }) {  const [hoveredIndex, setHoveredIndex] = useState(null);
 
   if (!data || data.length === 0) {
     return (
@@ -230,7 +230,6 @@ function ScalableBarLineChart({ data, onItemClick, xLabel, barColor = '#fed7aa',
 
   const maxCount = Math.max(1, ...data.map((d) => d.count));
   const slot = chartW / data.length;
-  const barW = Math.min(28, slot * 0.55);
   const labelEvery = Math.max(1, Math.ceil(data.length / 12));
 
   const xFor = (i) => padding.left + slot * i + slot / 2;
@@ -284,16 +283,6 @@ function ScalableBarLineChart({ data, onItemClick, xLabel, barColor = '#fed7aa',
         const isHovered = hoveredIndex === i;
         return (
           <g key={d.key}>
-            <rect
-              x={xFor(i) - barW / 2}
-              y={yFor(d.count)}
-              width={barW}
-              height={Math.max(0, padding.top + chartH - yFor(d.count))}
-              rx="3"
-              fill={isHovered ? '#fdba74' : barColor}
-              className="transition-colors"
-            />
-
             {/* halo behind the node, only visible while hovered/highlighted */}
             {isHovered && (
               <circle
@@ -610,6 +599,7 @@ function ReservationDrillDownChart() {
         </>
       )}
 
+      <AiSummaryCard view={view} year={year} month={month} selectedDate={selectedDate} />
     </div>
   );
 }

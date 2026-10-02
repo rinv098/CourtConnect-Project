@@ -21,6 +21,27 @@ async function findOverlapping({ courtId, date, startTime, endTime }) {
     [courtId, date, startTime, endTime]
   );
   return rows;
+  
+}
+// Overlapping reservations created BEFORE this one (lower id). Used for first-come, first-served conflict checks.
+async function findEarlierOverlapping({ id, courtId, date, startTime, endTime }) {
+  const [rows] = await db.query(
+    `SELECT id FROM reservations
+     WHERE court_id = ? AND date = ? AND id < ? AND status IN ('pending', 'approved')
+     AND NOT (end_time <= ? OR start_time >= ?)`,
+    [courtId, date, id, startTime, endTime]
+  );
+  return rows;
+}
+
+async function countActiveInWeek(userId, date) {
+  const [[row]] = await db.query(
+    `SELECT COUNT(*) AS count FROM reservations
+     WHERE user_id = ? AND status IN ('pending', 'approved')
+     AND YEARWEEK(date, 1) = YEARWEEK(?, 1)`,
+    [userId, date]
+  );
+  return row.count;
 }
 
 async function updateStatus(id, status) {
@@ -85,4 +106,4 @@ async function markNoShow(id, userId) {
   await db.query(`UPDATE users SET no_show_count = no_show_count + 1 WHERE id = ?`, [userId]);
 }
 
-module.exports = { createReservation, findOverlapping, updateStatus, findPublicUpcoming, findScheduleForDate, findAllWithDetails, checkIn, markNoShow };
+module.exports = { createReservation, findOverlapping, updateStatus, findPublicUpcoming, findScheduleForDate, findAllWithDetails, checkIn, markNoShow, findEarlierOverlapping, countActiveInWeek};

@@ -43,7 +43,7 @@ async function getCourtOccupancyToday() {
      GROUP BY c.id, c.name
      ORDER BY c.name`
   );
-  const TOTAL_SLOTS_PER_DAY = 14; // 8am to 10pm, 1-hour slots
+  const TOTAL_SLOTS_PER_DAY = 7; 
   return rows.map((r) => ({
     id: r.id,
     name: r.name,

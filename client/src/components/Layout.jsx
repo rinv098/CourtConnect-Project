@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, ClipboardList, LayoutGrid, Bell, LogOut, Menu, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ProfileDialog from '@/components/ProfileDialog';
+import FeaturedEvents from '@/components/FeaturedEvents';
 import { useNotifications } from '@/context/NotificationContext';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -60,9 +61,9 @@ function Layout({ children }) {
       {/* Mobile top header */}
       <div className="md:hidden bg-slate-900 text-white flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-                <img src={logo} alt="CourtConnect" className="w-9 h-9 rounded-lg object-cover" />
-                  <span className="font-bold text-lg tracking-tight">CourtConnect</span>
-              </div>
+          <img src={logo} alt="CourtConnect" className="w-9 h-9 rounded-lg object-cover" />
+          <span className="font-bold text-lg tracking-tight">CourtConnect</span>
+        </div>
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
           {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -72,6 +73,9 @@ function Layout({ children }) {
       {mobileMenuOpen && (
         <div className="md:hidden bg-slate-900 text-white px-3 pb-3 space-y-1">
           <NavLinks onNavigate={() => setMobileMenuOpen(false)} />
+          <div className="sidebar-scroll pt-4 pb-2 max-h-72 overflow-y-auto">
+            <FeaturedEvents />
+          </div>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 text-sm text-red-400 w-full"
@@ -82,15 +86,19 @@ function Layout({ children }) {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-64 bg-slate-900 text-white flex-col shrink-0">
+      <aside className="hidden md:flex w-64 bg-slate-900 text-white flex-col shrink-0 md:sticky md:top-0 md:h-screen">
         <div className="p-6 flex items-center gap-2">
-           <img src={logo} alt="CourtConnect" className="w-9 h-9 rounded-lg object-cover" />
-                  <span className="font-bold text-lg tracking-tight">CourtConnect</span>
+          <img src={logo} alt="CourtConnect" className="w-9 h-9 rounded-lg object-cover" />
+          <span className="font-bold text-lg tracking-tight">CourtConnect</span>
         </div>
 
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="px-3 space-y-1">
           <NavLinks />
         </nav>
+
+        <div className="sidebar-scroll flex-1 min-h-0 overflow-y-auto px-3 pt-6 pb-3">
+          <FeaturedEvents />
+        </div>
 
         <button
           onClick={handleLogout}
